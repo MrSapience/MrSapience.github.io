@@ -111,7 +111,7 @@
         body.dark-mode .results {
             background-color: #4caf50; /* Dark mode results background */
         }
-        .reset-button, .retry-button, .next-button, .previous-button {
+        .reset-button, .retry-button, .next-button, .previous-button, .finish-button {
             margin-top: 20px;
             padding: 10px 20px;
             cursor: pointer;
@@ -121,7 +121,7 @@
             color: white;
             transition: background-color 0.3s;
         }
-        .reset-button:hover, .retry-button:hover, .next-button:hover, .previous-button:hover {
+        .reset-button:hover, .retry-button:hover, .next-button:hover, .previous-button:hover, .finish-button:hover {
             background-color: #e64a19;
         }
         .toggle-button {
@@ -149,6 +149,17 @@
         .option-button:hover {
             background-color: #e0a800;
         }
+        .question-indicator {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .question-indicator select {
+            padding: 5px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            background-color: white;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -162,11 +173,13 @@
             <input type="file" id="fileInput" accept=".txt">
             <label for="fileInput">Upload Test File</label>
         </div>
+        <div class="question-indicator" id="questionIndicator"></div>
         <div id="testContent"></div>
         <button class="reset-button" id="resetButton" style="display: none;">Reset Answers</button>
         <button class="retry-button" id="retryButton" style="display: none;">Retry Incorrect Questions</button>
         <button class="previous-button" id="previousButton" style="display: none;">Previous</button>
         <button class="next-button" id="nextButton" style="display: none;">Next</button>
+        <button class="finish-button" id="finishButton" style="display: none;">Finish</button>
         <div id="results" class="results" style="display: none;"></div>
     </div>
     <script>
@@ -175,6 +188,7 @@
         let incorrectQuestions = []; // Store questions with incorrect answers
         let showCorrectAnswer = true; // Default to showing correct answer after wrong click
         let currentQuestionIndex = 0; // Index to keep track of the current question
+        let questions = []; // Store questions to shuffle
 
         document.getElementById('fileInput').addEventListener('change', function() {
             const file = this.files[0];
@@ -200,7 +214,7 @@
             lines.forEach(line => {
                 if (line.match(/^\d+\)/)) {
                     if (question) {
-                        createQuestionElement(question, answers, testContent);
+                        questions.push({ question, answers });
                         answers = [];
                         questionCount++;
                     }
@@ -210,11 +224,19 @@
                 }
             });
             if (question) {
-                createQuestionElement(question, answers, testContent);
+                questions.push({ question, answers });
                 questionCount++;
             }
 
             totalQuestions = questionCount;
+
+            // Scramble questions
+            questions = questions.sort(() => Math.random() - 0.5);
+
+            // Create question elements
+            questions.forEach(({ question, answers }) => {
+                createQuestionElement(question, answers, testContent);
+            });
 
             // Show the first question
             showQuestion(currentQuestionIndex);
@@ -222,10 +244,10 @@
             document.getElementById('resetButton').style.display = 'block'; // Show reset button
             document.getElementById('retryButton').style.display = 'none'; // Hide retry button
             document.getElementById('nextButton').style.display = 'block'; // Show next button
-            document.getElementById('previousButton').style.display = 'none'; // Hide previous button initially
-            score = 0; // Reset score for new test
-            incorrectQuestions = []; // Reset incorrect questions
-            document.getElementById('results').style.display = 'none'; // Hide results
+            document.getElementById('finishButton').style.display = 'block'; // Show finish button
+
+            // Update question indicator
+            updateQuestionIndicator();
         }
 
         function createQuestionElement(question, answers, container) {
@@ -261,6 +283,30 @@
             });
 
             document.getElementById('previousButton').style.display = index > 0 ? 'block' : 'none'; // Show previous button if not the first question
+            document.getElementById('nextButton').style.display = index < totalQuestions - 1 ? 'block' : 'none'; // Show next button if not the last question
+
+            // Update question indicator
+            updateQuestionIndicator();
+        }
+
+        function updateQuestionIndicator() {
+            const questionIndicator = document.getElementById('questionIndicator');
+            questionIndicator.innerHTML = `Question ${currentQuestionIndex + 1} of ${totalQuestions}`;
+            const select = document.createElement('select');
+            select.addEventListener('change', function() {
+                currentQuestionIndex = parseInt(this.value, 10);
+                showQuestion(currentQuestionIndex);
+            });
+            for (let i = 0; i < totalQuestions; i++) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.text = `Question ${i + 1}`;
+                if (i === currentQuestionIndex) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
+            }
+            questionIndicator.appendChild(select);
         }
 
         function checkAnswer(event) {
@@ -300,6 +346,7 @@
             document.getElementById('resetButton').style.display = 'block'; // Show reset button
             document.getElementById('nextButton').style.display = 'none'; // Hide next button
             document.getElementById('previousButton').style.display = 'none'; // Hide previous button
+            document.getElementById('finishButton').style.display = 'none'; // Hide finish button
         }
 
         document.getElementById('resetButton').addEventListener('click', function() {
@@ -334,6 +381,7 @@
             showQuestion(currentQuestionIndex); // Show the first question again
             document.getElementById('results').style.display = 'none'; // Hide results
             document.getElementById('retryButton').style.display = 'none'; // Hide retry button
+            document.getElementById('finishButton').style.display = 'block'; // Show finish button
         });
 
         document.getElementById('nextButton').addEventListener('click', function() {
@@ -355,6 +403,13 @@
                 showQuestion(currentQuestionIndex);
                 document.getElementById('nextButton').style.display = 'none'; // Hide next button until the current question is answered
             }
+        });
+
+        document.getElementById('finishButton').addEventListener('click', function() {
+            // Show all questions and display results
+            const questions = document.querySelectorAll('.question-container');
+            questions.forEach(question => question.classList.add('active'));
+            displayResults();
         });
 
         document.getElementById('toggleButton').addEventListener('click', function() {
