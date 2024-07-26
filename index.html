@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test Display Website</title>
+    <title>Test Your Knowledge</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -111,7 +111,12 @@
         body.dark-mode .results {
             background-color: #4caf50; /* Dark mode results background */
         }
-        .reset-button, .retry-button, .next-button, .previous-button, .finish-button {
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        .reset-button, .retry-button, .next-button, .previous-button, .finish-button, .scramble-button {
             margin-top: 20px;
             padding: 10px 20px;
             cursor: pointer;
@@ -120,8 +125,10 @@
             background-color: #ff5722; /* Red background for reset */
             color: white;
             transition: background-color 0.3s;
+            flex: 1;
+            margin: 5px;
         }
-        .reset-button:hover, .retry-button:hover, .next-button:hover, .previous-button:hover, .finish-button:hover {
+        .reset-button:hover, .retry-button:hover, .next-button:hover, .previous-button:hover, .finish-button:hover, .scramble-button:hover {
             background-color: #e64a19;
         }
         .toggle-button {
@@ -132,6 +139,8 @@
             border-radius: 5px;
             background-color: #007bff;
             color: white;
+            flex: 1;
+            margin: 5px;
         }
         .toggle-button:hover {
             background-color: #0056b3;
@@ -145,6 +154,8 @@
             background-color: #ffc107; /* Yellow background for option button */
             color: black;
             transition: background-color 0.3s;
+            flex: 1;
+            margin: 5px;
         }
         .option-button:hover {
             background-color: #e0a800;
@@ -160,13 +171,26 @@
             background-color: white;
             cursor: pointer;
         }
+        footer {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 12px;
+            color: #777;
+        }
+        body.dark-mode footer {
+            color: #ccc;
+        }
     </style>
 </head>
 <body>
     <header>
-        <h1>Test Display Website</h1>
-        <button class="toggle-button" id="toggleButton">Switch to Dark Mode</button>
-        <button class="option-button" id="toggleCorrectAnswer">Show Correct Answer After Wrong Click: ON</button>
+        <h1>Test Your Knowledge</h1>
+        <div class="button-container">
+            <button class="toggle-button" id="toggleButton">Switch to Dark Mode</button>
+            <button class="option-button" id="toggleCorrectAnswer">Show Correct Answer After Wrong Click: ON</button>
+            <button class="scramble-button" id="scrambleButton" style="display: none;">Scramble Questions</button>
+        </div>
     </header>
     <div class="container">
         <div class="upload-area">
@@ -175,13 +199,16 @@
         </div>
         <div class="question-indicator" id="questionIndicator"></div>
         <div id="testContent"></div>
-        <button class="reset-button" id="resetButton" style="display: none;">Reset Answers</button>
-        <button class="retry-button" id="retryButton" style="display: none;">Retry Incorrect Questions</button>
-        <button class="previous-button" id="previousButton" style="display: none;">Previous</button>
-        <button class="next-button" id="nextButton" style="display: none;">Next</button>
-        <button class="finish-button" id="finishButton" style="display: none;">Finish</button>
+        <div class="button-container">
+            <button class="reset-button" id="resetButton" style="display: none;">Reset Answers</button>
+            <button class="retry-button" id="retryButton" style="display: none;">Retry Incorrect Questions</button>
+            <button class="previous-button" id="previousButton" style="display: none;">Previous</button>
+            <button class="next-button" id="nextButton" style="display: none;">Next</button>
+            <button class="finish-button" id="finishButton" style="display: none;">Finish</button>
+        </div>
         <div id="results" class="results" style="display: none;"></div>
     </div>
+    <footer>Mr. Sapience</footer>
     <script>
         let score = 0;
         let totalQuestions = 0;
@@ -219,7 +246,7 @@
                         questionCount++;
                     }
                     question = line;
-                } else if (line.match(/^\d+\./)) {
+                } else if (line.trim()) {
                     answers.push(line);
                 }
             });
@@ -227,24 +254,18 @@
                 questions.push({ question, answers });
                 questionCount++;
             }
-
-            totalQuestions = questionCount;
-
-            // Scramble questions
-            questions = questions.sort(() => Math.random() - 0.5);
-
-            // Create question elements
+            totalQuestions = questionCount; // Set total questions
             questions.forEach(({ question, answers }) => {
                 createQuestionElement(question, answers, testContent);
             });
 
-            // Show the first question
+            currentQuestionIndex = 0;
             showQuestion(currentQuestionIndex);
 
-            document.getElementById('resetButton').style.display = 'block'; // Show reset button
-            document.getElementById('retryButton').style.display = 'none'; // Hide retry button
             document.getElementById('nextButton').style.display = 'block'; // Show next button
-            document.getElementById('finishButton').style.display = 'block'; // Show finish button
+            document.getElementById('previousButton').style.display = 'block'; // Show previous button
+            document.getElementById('finishButton').style.display = 'none'; // Hide finish button until test ends
+            document.getElementById('scrambleButton').style.display = 'block'; // Show scramble button
 
             // Update question indicator
             updateQuestionIndicator();
@@ -275,15 +296,8 @@
         function showQuestion(index) {
             const questions = document.querySelectorAll('.question-container');
             questions.forEach((question, i) => {
-                if (i === index) {
-                    question.classList.add('active');
-                } else {
-                    question.classList.remove('active');
-                }
+                question.classList.toggle('active', i === index);
             });
-
-            document.getElementById('previousButton').style.display = index > 0 ? 'block' : 'none'; // Show previous button if not the first question
-            document.getElementById('nextButton').style.display = index < totalQuestions - 1 ? 'block' : 'none'; // Show next button if not the last question
 
             // Update question indicator
             updateQuestionIndicator();
@@ -332,7 +346,12 @@
             const buttons = questionElem.querySelectorAll('.answers button');
             buttons.forEach(btn => btn.disabled = true); // Disable all buttons for the question
 
-            document.getElementById('nextButton').style.display = 'block'; // Show next button
+            if (currentQuestionIndex < totalQuestions - 1) {
+                document.getElementById('nextButton').style.display = 'block'; // Show next button until the last question
+            } else {
+                document.getElementById('nextButton').style.display = 'none'; // Hide next button at the last question
+                document.getElementById('finishButton').style.display = 'block'; // Show finish button at the last question
+            }
         }
 
         function displayResults() {
@@ -388,12 +407,6 @@
             if (currentQuestionIndex < totalQuestions - 1) {
                 currentQuestionIndex++;
                 showQuestion(currentQuestionIndex);
-                this.style.display = 'none'; // Hide next button until the next question is answered
-            } else {
-                // Show all questions and display results
-                const questions = document.querySelectorAll('.question-container');
-                questions.forEach(question => question.classList.add('active'));
-                displayResults();
             }
         });
 
@@ -401,7 +414,6 @@
             if (currentQuestionIndex > 0) {
                 currentQuestionIndex--;
                 showQuestion(currentQuestionIndex);
-                document.getElementById('nextButton').style.display = 'none'; // Hide next button until the current question is answered
             }
         });
 
@@ -420,6 +432,25 @@
         document.getElementById('toggleCorrectAnswer').addEventListener('click', function() {
             showCorrectAnswer = !showCorrectAnswer; // Toggle the option
             this.innerText = `Show Correct Answer After Wrong Click: ${showCorrectAnswer ? 'ON' : 'OFF'}`;
+        });
+
+        document.getElementById('scrambleButton').addEventListener('click', function() {
+            // Scramble the questions
+            questions = questions.sort(() => Math.random() - 0.5);
+            const testContent = document.getElementById('testContent');
+            testContent.innerHTML = ''; // Clear existing questions
+            questions.forEach(({ question, answers }) => {
+                createQuestionElement(question, answers, testContent);
+            });
+            // Reset the quiz
+            score = 0;
+            incorrectQuestions = [];
+            currentQuestionIndex = 0;
+            showQuestion(currentQuestionIndex);
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('retryButton').style.display = 'none';
+            document.getElementById('resetButton').style.display = 'none';
+            document.getElementById('finishButton').style.display = 'none';
         });
     </script>
 </body>
