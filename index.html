@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Display Website</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f8ff; /* Light mode background */
+            color: #333; /* Light mode text color */
+            box-sizing: border-box;
+            transition: background-color 0.3s, color 0.3s; /* Transition for dark mode */
+        }
+        body.dark-mode {
+            background-color: #333; /* Dark mode background */
+            color: #f0f8ff; /* Dark mode text color */
+        }
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #ffffff; /* Light mode container background */
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Soft shadow */
+            transition: background-color 0.3s; /* Transition for dark mode */
+        }
+        body.dark-mode .container {
+            background-color: #444; /* Dark mode container background */
+        }
+        .upload-area {
+            border: 2px dashed #007bff;
+            padding: 20px;
+            text-align: center;
+            border-radius: 10px;
+            background-color: #e6f7ff; /* Light blue background */
+        }
+        body.dark-mode .upload-area {
+            background-color: #555; /* Dark mode upload area background */
+            border-color: #0056b3; /* Dark mode border color */
+        }
+        .upload-area input[type="file"] {
+            display: none;
+        }
+        .upload-area label {
+            display: inline-block;
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+        }
+        body.dark-mode .upload-area label {
+            background-color: #0056b3; /* Dark mode button color */
+        }
+        .question-container {
+            display: none; /* Hide all questions initially */
+        }
+        .question-container.active {
+            display: block; /* Show only the active question */
+        }
+        .question {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f9f9f9; /* Light gray background for questions */
+            border-radius: 5px;
+        }
+        body.dark-mode .question {
+            background-color: #666; /* Dark mode question background */
+        }
+        .answers {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0;
+        }
+        .answers li {
+            margin: 10px 0;
+        }
+        .answers button {
+            padding: 10px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            width: 100%;
+            text-align: left;
+            transition: background-color 0.3s;
+        }
+        body.dark-mode .answers button {
+            background-color: #0056b3; /* Dark mode answer button color */
+        }
+        .correct {
+            background-color: green !important; /* Highlight correct answers */
+        }
+        .incorrect {
+            background-color: red !important; /* Highlight incorrect answers */
+        }
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e9f7ef; /* Light green background for results */
+            border-radius: 5px;
+        }
+        body.dark-mode .results {
+            background-color: #4caf50; /* Dark mode results background */
+        }
+        .reset-button, .retry-button, .next-button, .previous-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #ff5722; /* Red background for reset */
+            color: white;
+            transition: background-color 0.3s;
+        }
+        .reset-button:hover, .retry-button:hover, .next-button:hover, .previous-button:hover {
+            background-color: #e64a19;
+        }
+        .toggle-button {
+            padding: 10px;
+            cursor: pointer;
+            margin-top: 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+        }
+        .toggle-button:hover {
+            background-color: #0056b3;
+        }
+        .option-button {
+            margin-top: 20px;
+            padding: 10px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #ffc107; /* Yellow background for option button */
+            color: black;
+            transition: background-color 0.3s;
+        }
+        .option-button:hover {
+            background-color: #e0a800;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Test Display Website</h1>
+        <button class="toggle-button" id="toggleButton">Switch to Dark Mode</button>
+        <button class="option-button" id="toggleCorrectAnswer">Show Correct Answer After Wrong Click: ON</button>
+    </header>
+    <div class="container">
+        <div class="upload-area">
+            <input type="file" id="fileInput" accept=".txt">
+            <label for="fileInput">Upload Test File</label>
+        </div>
+        <div id="testContent"></div>
+        <button class="reset-button" id="resetButton" style="display: none;">Reset Answers</button>
+        <button class="retry-button" id="retryButton" style="display: none;">Retry Incorrect Questions</button>
+        <button class="previous-button" id="previousButton" style="display: none;">Previous</button>
+        <button class="next-button" id="nextButton" style="display: none;">Next</button>
+        <div id="results" class="results" style="display: none;"></div>
+    </div>
+    <script>
+        let score = 0;
+        let totalQuestions = 0;
+        let incorrectQuestions = []; // Store questions with incorrect answers
+        let showCorrectAnswer = true; // Default to showing correct answer after wrong click
+        let currentQuestionIndex = 0; // Index to keep track of the current question
+
+        document.getElementById('fileInput').addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const content = e.target.result;
+                    displayTest(content);
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        function displayTest(content) {
+            const testContent = document.getElementById('testContent');
+            testContent.innerHTML = '';
+            const lines = content.split('\n');
+            let question = '';
+            let answers = [];
+            totalQuestions = 0; // Reset total questions count
+            let questionCount = 0; // Count the number of questions for navigation
+
+            lines.forEach(line => {
+                if (line.match(/^\d+\)/)) {
+                    if (question) {
+                        createQuestionElement(question, answers, testContent);
+                        answers = [];
+                        questionCount++;
+                    }
+                    question = line;
+                } else if (line.match(/^\d+\./)) {
+                    answers.push(line);
+                }
+            });
+            if (question) {
+                createQuestionElement(question, answers, testContent);
+                questionCount++;
+            }
+
+            totalQuestions = questionCount;
+
+            // Show the first question
+            showQuestion(currentQuestionIndex);
+
+            document.getElementById('resetButton').style.display = 'block'; // Show reset button
+            document.getElementById('retryButton').style.display = 'none'; // Hide retry button
+            document.getElementById('nextButton').style.display = 'block'; // Show next button
+            document.getElementById('previousButton').style.display = 'none'; // Hide previous button initially
+            score = 0; // Reset score for new test
+            incorrectQuestions = []; // Reset incorrect questions
+            document.getElementById('results').style.display = 'none'; // Hide results
+        }
+
+        function createQuestionElement(question, answers, container) {
+            const questionElem = document.createElement('div');
+            questionElem.classList.add('question-container');
+            questionElem.innerHTML = `<div class="question">${question}</div>`;
+
+            const answersElem = document.createElement('ul');
+            answersElem.classList.add('answers');
+
+            answers.forEach(answer => {
+                const answerElem = document.createElement('li');
+                const button = document.createElement('button');
+                button.innerText = answer.replace(/\|/g, '');
+                button.dataset.correct = answer.includes('|');
+                button.addEventListener('click', checkAnswer);
+                answerElem.appendChild(button);
+                answersElem.appendChild(answerElem);
+            });
+
+            questionElem.appendChild(answersElem);
+            container.appendChild(questionElem);
+        }
+
+        function showQuestion(index) {
+            const questions = document.querySelectorAll('.question-container');
+            questions.forEach((question, i) => {
+                if (i === index) {
+                    question.classList.add('active');
+                } else {
+                    question.classList.remove('active');
+                }
+            });
+
+            document.getElementById('previousButton').style.display = index > 0 ? 'block' : 'none'; // Show previous button if not the first question
+        }
+
+        function checkAnswer(event) {
+            const button = event.target;
+            const correct = button.dataset.correct === 'true';
+            if (correct) {
+                button.classList.add('correct');
+                score++;
+            } else {
+                button.classList.add('incorrect');
+                if (showCorrectAnswer) {
+                    const buttons = button.parentNode.parentNode.querySelectorAll('button');
+                    buttons.forEach(btn => {
+                        if (btn.dataset.correct === 'true') {
+                            btn.classList.add('correct');
+                        }
+                    });
+                }
+                incorrectQuestions.push(button.closest('.question-container').innerHTML);
+            }
+
+            const questionElem = button.closest('.question-container');
+            const buttons = questionElem.querySelectorAll('.answers button');
+            buttons.forEach(btn => btn.disabled = true); // Disable all buttons for the question
+
+            document.getElementById('nextButton').style.display = 'block'; // Show next button
+        }
+
+        function displayResults() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `Your score: ${score} out of ${totalQuestions}`;
+            if (incorrectQuestions.length > 0) {
+                resultsDiv.innerHTML += `<br>You answered the following questions incorrectly: <br>${incorrectQuestions.join('<br>')}`;
+            }
+            resultsDiv.style.display = 'block';
+            document.getElementById('retryButton').style.display = 'block'; // Show retry button
+            document.getElementById('resetButton').style.display = 'block'; // Show reset button
+            document.getElementById('nextButton').style.display = 'none'; // Hide next button
+            document.getElementById('previousButton').style.display = 'none'; // Hide previous button
+        }
+
+        document.getElementById('resetButton').addEventListener('click', function() {
+            // Reset the answers only, not the questions
+            const buttons = document.querySelectorAll('.answers button');
+            buttons.forEach(button => {
+                button.classList.remove('correct', 'incorrect'); // Remove highlighting
+                button.disabled = false; // Enable buttons
+            });
+            document.getElementById('results').style.display = 'none'; // Hide results
+            score = 0; // Reset score
+            incorrectQuestions = []; // Reset incorrect questions
+            currentQuestionIndex = 0; // Reset question index
+            showQuestion(currentQuestionIndex); // Show the first question again
+        });
+
+        document.getElementById('retryButton').addEventListener('click', function() {
+            // Only display the incorrect questions
+            const testContent = document.getElementById('testContent');
+            testContent.innerHTML = ''; // Clear existing questions
+            incorrectQuestions.forEach(questionHTML => {
+                const div = document.createElement('div');
+                div.innerHTML = questionHTML;
+                const questionElem = div.firstChild;
+                testContent.appendChild(questionElem);
+            });
+            // Reset variables for retry
+            score = 0;
+            totalQuestions = incorrectQuestions.length;
+            incorrectQuestions = [];
+            currentQuestionIndex = 0; // Reset question index
+            showQuestion(currentQuestionIndex); // Show the first question again
+            document.getElementById('results').style.display = 'none'; // Hide results
+            document.getElementById('retryButton').style.display = 'none'; // Hide retry button
+        });
+
+        document.getElementById('nextButton').addEventListener('click', function() {
+            if (currentQuestionIndex < totalQuestions - 1) {
+                currentQuestionIndex++;
+                showQuestion(currentQuestionIndex);
+                this.style.display = 'none'; // Hide next button until the next question is answered
+            } else {
+                // Show all questions and display results
+                const questions = document.querySelectorAll('.question-container');
+                questions.forEach(question => question.classList.add('active'));
+                displayResults();
+            }
+        });
+
+        document.getElementById('previousButton').addEventListener('click', function() {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                showQuestion(currentQuestionIndex);
+                document.getElementById('nextButton').style.display = 'none'; // Hide next button until the current question is answered
+            }
+        });
+
+        document.getElementById('toggleButton').addEventListener('click', function() {
+            document.body.classList.toggle('dark-mode');
+            this.innerText = document.body.classList.contains('dark-mode') ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+        });
+
+        document.getElementById('toggleCorrectAnswer').addEventListener('click', function() {
+            showCorrectAnswer = !showCorrectAnswer; // Toggle the option
+            this.innerText = `Show Correct Answer After Wrong Click: ${showCorrectAnswer ? 'ON' : 'OFF'}`;
+        });
+    </script>
+</body>
+</html>
